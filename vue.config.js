@@ -11,7 +11,7 @@ module.exports = {
   devServer: {
     proxy: {
       '/api': {
-        target: `http://www.baidu.com/`,
+        target: `http://test.zr12312.com/`,
         ws: true,
         secure: false,
         changeOrigin: true,
@@ -26,7 +26,7 @@ module.exports = {
   chainWebpack: (config) => {
     config.plugin('html')
     .tap((args) => {
-        args[0].title = '首页';
+        args[0].title = '助涨财富班';
         return args;
     });
     config.resolve.alias
