@@ -3,7 +3,7 @@
     <button type="default" class="wealth_btn" :class="{'active':isActive == 1}" @click="receive"></button>
     <!-- 弹窗 -->
     <van-popup v-model="show" class="popup-box" position="center"  round :close-on-click-overlay="false">
-        <div class="inspect" v-show="stepNum == 0">
+        <div class="inspect" v-show="stepNum == -1">
           <img class="inspect-img" src="../assets/phone.png" alt="">
           <p class="inspect-txt">身份验证</p>
           <van-cell-group class="inspect-info">
@@ -16,7 +16,7 @@
               clearable
               border
               class="code"
-              maxlength="4"
+              maxlength="6"
               label=""
               @focus="validateCode = 0"
               :class="{'iptActive':validateCode == 1}"
@@ -32,7 +32,7 @@
           <van-button type="default"  class="cancel"  @click="cancel"  size="normal">暂不领取</van-button>
           <van-button type="default"  class="define" @click="define"  size="normal">确定</van-button>
         </div>
-        <div class="success" v-show="stepNum != 0">
+        <div class="success" v-show="stepNum != -1">
             <div class="flash"></div>
             <div class="card warn"></div>
         </div>
@@ -42,7 +42,7 @@
 
 <script>
   import { _ } from "@/utils/common";
-  import { Popup, Toast, Dialog } from 'vant';
+  import { Popup, Toast, Dialog, Notify } from 'vant';
   import { getCurrentStep, loginInfo, getCode, inspectCode  } from '@/api/login'
 
   export default {
@@ -64,12 +64,13 @@
         wxKey: null
       }
     },
-    mounted(){
+    mounted() {
       this.init();
-      let token = _.getCookie('Access-Token');
       let code = _.getQueryValue("code");
-      this.code = code;
-      if(token == "" && code){
+      let wxKey = _.getCookie("wxKey");
+      let toke = _.getCookie("Access-Token");
+      this.code = code
+      if(code && toke == "" && wxKey == ""){
         this.userLogin()
       }
     },
@@ -82,10 +83,12 @@
         loginInfo(this.code).then((res) => {
           if(res.data.token){
             _.setCookie('Access-Token', res.data.token)
+            this.getStep()
           }else{
+            this.stepNum = -1
             this.wxKey = res.data.wxKey
+            this.show = true
           }
-          this.getStep()
         })
       },
       getStep() {
@@ -97,11 +100,7 @@
         getCurrentStep().then((res) => {
           Toast.clear();
           this.stepNum = parseInt(res.data.stepNum)
-          if(this.stepNum == 0){
-            this.show = true
-          }else{
-            this.show = true
-          }
+          this.show = true
         })
       },
       getCode() {
@@ -109,9 +108,9 @@
           if(_.regTel(this.phone)){
             getCode(this.phone).then((res) => {
                 if(res.code == 200){
-                  Dialog.alert({ title: "提示", message: "验证码已发送至手机,请注意查收!" })
                   this.disabledCode = true
                   this.setTimeVal()
+                  Notify({ type: 'success', message: '验证码已发送至手机,请注意查收!' });
                 }
             })
           }else{
@@ -120,7 +119,13 @@
         }
       },
       receive() {
-        this.getStep()
+        let wxKey = _.getCookie('wxKey');
+        if(wxKey){
+          this.stepNum = -1
+          this.show = true
+        }else{
+          this.getStep()
+        }
       },
       setTimeVal() {
         if (this.countdown == 0) {
@@ -141,18 +146,26 @@
       cancel() {
         this.show = false
         this.countdown = 0
+        _.setCookie('wxKey', this.wxKey)
         this.phone = ''
         this.verificationCode = ''
       },
       define() {
         if(this.phone == ""){
           this.validatePhone = 1
+          return
         }
         if(this.verificationCode == ""){
           this.validateCode = 1
+          return
         }
         inspectCode({acChannel: 1,acTerminalType: 4,phone: this.phone,verifyCode: this.verificationCode,wxKey: this.wxKey}).then((res) => {
-           _.setCookie('Access-Token', res.data.token)
+            if(res.code === 200 && res.data){
+              this.stepNum = 0
+              this.show = true
+              _.setCookie('wxKey', '', -1);
+              _.setCookie('Access-Token', res.data.token)
+            }
         })
       }
     }
@@ -181,6 +194,7 @@
   .popup-box{
     width: 100%;
     height: 4.8rem;
+    margin-top: 0.5rem;
     background-color: transparent;
   }
   @-webkit-keyframes warn{

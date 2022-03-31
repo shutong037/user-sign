@@ -54,7 +54,7 @@ axios.interceptors.response.use(
 
 function setToken(){
   getAuth().then((res) => {
-    let url = location.protocol + '//' + location.host +"/wealth"
+    let url = location.protocol + '//' + location.host +'/wealth/'
     let data = res.data.replace(/REDIRECTURI/g , encodeURIComponent(url))
     window.location.href =  data
   })
